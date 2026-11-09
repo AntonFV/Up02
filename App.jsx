@@ -139,17 +139,30 @@ const initialCart = [];
 function cartReducer(state, action) {
   switch (action.type) {
     case "add":
-      return [...state, action.payload];
+      const existingItem = state.find(item => item.name === action.payload.name);
+      
+      if (existingItem) {
+        return state.map(item =>
+          item.name === action.payload.name
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      
+      
+      return [...state, { ...action.payload, quantity: 1 }];
+      
+    case "decrease":
+      
+      return state.map(item => {
+        if (item.name === action.payload.name) {
+          return { ...item, quantity: item.quantity - 1 };
+        }
+        return item;
+      }).filter(item => item.quantity > 0);
       
     case "remove":
-      const index = state.findIndex(item => item.name === action.payload.name);
-      if (index !== -1) {
-        return [
-          ...state.slice(0, index),
-          ...state.slice(index + 1)
-        ];
-      }
-      return state;
+      return state.filter(item => item.name !== action.payload.name);
       
     case "clear":
       return [];
@@ -197,12 +210,13 @@ function Home() {
 }
 
 function Cart() {
-const { theme } = useContext(ThemeContext); 
- const { cart, dispatch } = useContext(CartContext);
-  const total = cart.reduce((sum, item) => sum + Number(item.cost), 0);  
+  const { theme } = useContext(ThemeContext); 
+  const { cart, dispatch } = useContext(CartContext);
+  
+  const total = cart.reduce((sum, item) => sum + (Number(item.cost) * item.quantity), 0);  
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: "20px", maxWidth: "800px", margin: "0 auto" }}>
       <h2 style={{ color: theme === "dark" ? "#fff" : "#08060d" }}>Корзина</h2>
       
       {cart.length === 0 ? (
@@ -218,31 +232,58 @@ const { theme } = useContext(ThemeContext);
               borderBottom: "1px solid #ccc",
               color: theme === "dark" ? "#fff" : "#000"
             }}>
-              <span>{item.name} — {item.cost} руб.</span>
-              <button 
-                onClick={() => dispatch({ type: "remove", payload: item })}
-                style={{
-                  backgroundColor: "#ff0033",
-                  color: "#fff",
-                  border: "none",
-                  padding: "5px 10px",
-                  borderRadius: "5px",
-                  cursor: "pointer"
-                }}
-              >
-                Удалить
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <span style={{ fontWeight: "bold", minWidth: "120px" }}>{item.name}</span>
+                <span>Цена: {item.cost} руб.</span>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <button 
+                  onClick={() => dispatch({ type: "decrease", payload: item })}
+                  style={{ padding: "2px 8px", cursor: "pointer", fontSize: "16px" }}
+                >
+                  -
+                </button>
+                
+                <span style={{ fontWeight: "bold", fontSize: "18px" }}>{item.quantity}</span>
+                
+                <button 
+                  onClick={() => dispatch({ type: "add", payload: item })}
+                  style={{ padding: "2px 8px", cursor: "pointer", fontSize: "16px" }}
+                >
+                  +
+                </button>
+
+                <span style={{ minWidth: "80px", textAlign: "right", marginLeft: "10px" }}>
+                  {Number(item.cost) * item.quantity} руб.
+                </span>
+
+                <button 
+                  onClick={() => dispatch({ type: "remove", payload: item })}
+                  style={{
+                    backgroundColor: "#ff0033",
+                    color: "#fff",
+                    border: "none",
+                    padding: "5px 10px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    marginLeft: "10px"
+                  }}
+                >
+                  Удалить
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
       
       {cart.length > 0 && (
-        <div style={{ marginTop: "20px", color: theme === "dark" ? "#fff" : "#000" }}>
+        <div style={{ marginTop: "20px", color: theme === "dark" ? "#fff" : "#000", textAlign: "right" }}>
           <h3>Итого: {total} руб.</h3>
           <button 
             onClick={() => dispatch({ type: "clear" })}
-            style={{ backgroundColor: "#ff5555", color: "#fff", padding: "10px", border: "none", borderRadius: "5px", cursor: "pointer" }}
+            style={{ backgroundColor: "#ff5555", color: "#fff", padding: "10px 20px", border: "none", borderRadius: "5px", cursor: "pointer", marginTop: "10px" }}
           >
             Очистить корзину
           </button>
@@ -258,8 +299,16 @@ const [theme, setTheme] = useState(() => {
     return localStorage.getItem("app-theme") || "light";
   });
 
-  const [cart, dispatch] = useReducer(cartReducer, initialCart);
+const [cart, dispatch] = useReducer(cartReducer, [], () => {
+  const savedCart = localStorage.getItem("app-cart");
+  return savedCart ? JSON.parse(savedCart) : [];
+});
+const customDispatch = (action) => {
+    dispatch(action);
+    const newCart = cartReducer(cart, action);
+    localStorage.setItem("app-cart", JSON.stringify(newCart));
 
+  };
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
 
@@ -294,7 +343,7 @@ const [theme, setTheme] = useState(() => {
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <CartContext.Provider value={{ cart, dispatch }}>
+      <CartContext.Provider value={{ cart, dispatch:customDispatch }}>
         <div style={appStyles}>
           <BrowserRouter>
             <nav style={{ margin: "10px", display: "flex", alignItems: "center", gap: "15px" }}>
