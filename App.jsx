@@ -130,10 +130,7 @@ function Sale(props) {
       >
         Добавить в корзину
       </button>
-      
-      <p className="V" style={{ color: theme === "dark" ? "#ff5555" : "crimson" }}>
-        Выбрано товара: {count}
-      </p>
+    
     </div>
   );
 }
@@ -256,12 +253,22 @@ const { theme } = useContext(ThemeContext);
 }
 
 function App() {
-  const [theme, setTheme] = useState("light");
+  
+const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("app-theme") || "light";
+  });
+
   const [cart, dispatch] = useReducer(cartReducer, initialCart);
 
   const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
+    const newTheme = theme === "light" ? "dark" : "light";
+
+    setTheme(newTheme);
+
+  localStorage.setItem("app-theme", newTheme);
   };
+
+  
 
   const appStyles = {
     backgroundColor: theme === "dark" ? "#333" : "#fff",
